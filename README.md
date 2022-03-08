@@ -19,4 +19,4 @@ The 'Test' button is for getting the actual used configuration. The 'Reset' butt
 
 Screenshots:
 
-![My image](https://github.com/frank038/Qt5DeviceConfigurator/blob/master/imgage1.png)
+![My image](https://github.com/frank038/Qt5DeviceConfigurator/blob/main/image1.png)
