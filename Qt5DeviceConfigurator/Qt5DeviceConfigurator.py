@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# version 0.8
+# version 0.8.1
 import os
 ############## SETTINGS ##############
 
@@ -165,6 +165,7 @@ class MainWin(QWidget):
         page1.setLayout(self.grid1)
         # mice list
         self.mcombo = QComboBox()
+        self.mcombo.activated.connect(self.on_mcombo)
         self.grid1.addWidget(self.mcombo, 0, 0, 1, 10, Qt.AlignLeft)
         self.pop_mcombo()
         # disable this tab if no mice
@@ -190,7 +191,6 @@ class MainWin(QWidget):
         self.slider_speed.setSliderPosition(0)
         self.slider_speed.setPageStep(5)
         self.slider_speed.setSingleStep(5)
-        # self.slider_speed.valueChanged.connect(self.on_slider_speed)
         self.grid1.addWidget(self.slider_speed, 3, 1, 1, 8, Qt.AlignCenter)
         self.slider_speed.setEnabled(False)
         # increase the speed
@@ -1124,6 +1124,10 @@ Variant: {5}""".format(rip_val, int_val, rip_ckb_value, kb_model or "(Not setted
 ########### END KEYBOARD ###########
 
 ########## MOUSE ###########
+    
+    # switch mouse
+    def on_mcombo(self):
+        self.on_start_mouse(self.mcombo.currentText())
     
     # setting some values on starting - mouse
     def on_start_mouse(self, mouse_name):
