@@ -17,7 +17,7 @@ Mouse: configuration is per mouse, so different configurations can be used for d
 
 The 'Test' button is for getting the actual used configuration. The 'Reset' button is for reset all value to the starting ones. The 'Apply' button let user to apply the settings immediately, or for creating bash scripts and desktop file, for mouse, keyboard and monitor. For monitor resolution and other the program arandr is needed, or others if setted. At the beginning of the python script some options can be changed.
 
-This program cannot be change the settings globally, only for user. So, all changes will be lost after logout/login and reboot. The bash scripts and the desktop files are for apply the custom setting at login.
+This program cannot be change the settings globally, only for user. So, all changes will be lost after logout/login and reboot. The bash scripts and the desktop files are for apply the custom setting at login or when requested.
 
 Screenshots:
 
