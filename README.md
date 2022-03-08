@@ -11,7 +11,7 @@ Required:
 - setxkbmap
 - optional: arandr
 
-This program let user to settings mice, keyboard and monitor overriding default settings. All settings can be applied only, or a bash script and a desktop file can be created (in the HOME folder) to be used to use custom options as desired. The desktop file can be placed in the autostart folder.
+This program let user set mice, keyboard and monitor overriding default settings. All settings can be applied only, or a bash script and a desktop file can be created (in the HOME folder) to be used to use custom options as desired. The desktop file can be placed in the autostart folder.
 
 Mouse: configuration is per mouse, so different configurations can be used for different mice.
 
