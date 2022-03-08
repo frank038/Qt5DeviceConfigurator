@@ -1,7 +1,7 @@
 # Qt5DeviceConfigurator
 A simple frontend for setting mice, keyboard and monitor.
 
-Version 0.8 - Testing
+Version 0.8.1 - Testing
 
 Required:
 - python3
