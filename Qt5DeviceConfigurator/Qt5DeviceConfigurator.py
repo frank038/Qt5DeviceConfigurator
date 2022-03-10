@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# version 0.8.1
+# version 0.8.2
 import os
 ############## SETTINGS ##############
 
@@ -386,8 +386,8 @@ class MainWin(QWidget):
             monitor_lbl = QLabel("Application {} not found.".format(MONITOR_PROG))
             self.grid3.addWidget(monitor_lbl, 0, 0, 1, 4, Qt.AlignLeft)
         ## screensaver off/on
-        self.screensaver_on_off_btn = QPushButton("Scrs On/Off")
-        self.screensaver_on_off_btn.setToolTip("Set the screensaver off/on.")
+        self.screensaver_on_off_btn = QPushButton("Scrsvr On/Off")
+        self.screensaver_on_off_btn.setToolTip("Set the screensaver off/on.\nApply is not needed.")
         self.screensaver_on_off_btn.clicked.connect(self.on_screensaver_on_off)
         self.grid3.addWidget(self.screensaver_on_off_btn, 0, 9, 1, 2, Qt.AlignLeft)
         ## standby
@@ -574,13 +574,13 @@ class MainWin(QWidget):
         #
         try:
             if self.standby_val != self.start_standby_val \
-            or int(self.standby_lbl.text()) != self.start_standby_val \
             or self.suspend_val != self.start_suspend_val \
-            or int(self.suspend_lbl.text()) != self.start_standby_val \
-            or self.off_val != self.start_off_val \
-            or int(self.moff_lbl.text()) != self.start_off_val:
+            or self.off_val != self.start_off_val:
                 cmd = "xset dpms {} {} {}".format(int(self.start_standby_val), int(self.start_suspend_val), int(self.start_off_val))
                 subprocess.Popen(cmd, shell=True)
+            if int(self.standby_lbl.text()) != self.start_standby_val \
+            or int(self.suspend_lbl.text()) != self.start_standby_val \
+            or int(self.moff_lbl.text()) != self.start_off_val:
                 self.standby_val = self.start_standby_val
                 self.standby_slider.setSliderPosition(self.start_standby_val)
                 self.standby_lbl.setText(str(self.start_standby_val))
@@ -595,11 +595,11 @@ class MainWin(QWidget):
         #
         try:
             if self.stimeout_val != self.start_stimeout_val \
-            or int(self.stimeout_lbl.text()) != self.start_stimeout_val \
-            or self.scycle_val != self.start_scycle_val \
-            or int(self.scycle_lbl.text()) != self.start_scycle_val:
+            or self.scycle_val != self.start_scycle_val:
                 cmd = "xset s {} {}".format(int(self.start_stimeout_val), int(self.start_scycle_val))
                 subprocess.Popen(cmd, shell=True)
+            if int(self.stimeout_lbl.text()) != self.start_stimeout_val \
+            or int(self.scycle_lbl.text()) != self.start_scycle_val:
                 self.stimeout_val = self.start_stimeout_val
                 self.stimeout_slider.setSliderPosition(self.start_stimeout_val)
                 self.stimeout_lbl.setText(str(self.start_stimeout_val))
@@ -762,15 +762,11 @@ class MainWin(QWidget):
             self.stimeout_slider.setSliderPosition(0)
             self.stimeout_lbl.setText(str(0))
         else:
-            cmd = "xset s on"
+            self.stimeout_slider.setSliderPosition(self.start_stimeout_val)
+            self.stimeout_lbl.setText(str(self.start_stimeout_val))
+            self.stimeout_val = self.start_stimeout_val
+            cmd = "xset s {} {}".format(int(self.stimeout_val), int(self.scycle_val))
             subprocess.run(cmd, shell=True)
-            cmd = "xset q | grep 'timeout'"
-            ret = subprocess.check_output(cmd, shell=True)
-            ret_temp = ret.decode()
-            list_value = [int(s) for s in ret_temp.split() if s.isdigit()]
-            stimeout_val, scycle_val = list_value
-            self.stimeout_slider.setSliderPosition(stimeout_val)
-            self.stimeout_lbl.setText(str(stimeout_val))
     
     #
     def on_test_btn_3(self):
@@ -923,12 +919,12 @@ Cycle: {4}""".format(sb_val, sp_val, mo_val, st_val, sc_val)
         # delay and rate
         try:
             if self.rip_val != self.start_rip_val \
-            or int(self.label_wait_rip.text()) != self.start_rip_val \
-            or self.int_val != self.start_int_val \
-            or int(self.label_int.text())  != self.start_int_val:
+            or self.int_val != self.start_int_val:
                 cmd = "xset r rate {} {}".format(self.start_rip_val, self.start_int_val)
                 subprocess.Popen(cmd, shell=True)
-                #
+            #
+            if int(self.label_wait_rip.text()) != self.start_rip_val \
+            or int(self.label_int.text())  != self.start_int_val:
                 self.rip_val = self.start_rip_val
                 self.label_wait_rip.setText(str(self.start_rip_val))
                 self.slider_rip.setSliderPosition(self.start_rip_val)
@@ -938,40 +934,41 @@ Cycle: {4}""".format(sb_val, sp_val, mo_val, st_val, sc_val)
         except Exception as E:
             MyDialog("Error", str(E), self)
         # beep
-        if self.rip_ckb_value != self.start_rip_ckb_value \
-        or self.rip_ckb.isChecked() != self.start_rip_ckb_value:
+        if self.rip_ckb_value != self.start_rip_ckb_value:
             str_new_rip_ckb = "on"
             if self.start_rip_ckb_value == 0:
                 str_new_rip_ckb = "off"
             cmd = "xset b {}".format(str_new_rip_ckb)
             try:
                 subprocess.Popen(cmd, shell=True)
-                #
-                self.rip_ckb_value = self.start_rip_ckb_value
-                self.rip_ckb.setChecked(self.start_rip_ckb_value)
             except Exception as E:
                 MyDialog("Error", str(E), self)
+        #
+        if self.rip_ckb.isChecked() != self.start_rip_ckb_value:
+            self.rip_ckb_value = self.start_rip_ckb_value
+            self.rip_ckb.setChecked(self.start_rip_ckb_value)
         ### keyboard model layout variant settings
         if self.kb_model != self.start_kb_model \
-        or self.label_kb_model.text() != self.start_kb_model \
         or self.kb_layout != self.start_kb_layout \
-        or self.label_kb_layout.text() != self.start_kb_layout \
-        or self.kb_variant != self.start_kb_variant \
-        or self.label_kb_variant.text() != self.start_kb_variant:
+        or self.kb_variant != self.start_kb_variant:
             if self.start_kb_variant == "":
                 cmd = "setxkbmap -model {} -layout {}".format(self.start_kb_model, self.start_kb_layout)
             else:
                 cmd = "setxkbmap -model {} -layout {} -variant {}".format(self.start_kb_model, self.start_kb_layout, self.start_kb_variant)
             try:
                 subprocess.Popen(cmd, shell=True)
-                self.kb_model = self.start_kb_model
-                self.label_kb_model.setText(self.start_kb_model)
-                self.kb_layout = self.start_kb_layout
-                self.label_kb_layout.setText(self.start_kb_layout)
-                self.kb_variant = self.start_kb_variant
-                self.label_kb_variant.setText(self.start_kb_variant)
             except Exception as E:
                 MyDialog("Error", str(E), self)
+        #
+        if self.label_kb_model.text() != self.start_kb_model \
+        or self.label_kb_layout.text() != self.start_kb_layout \
+        or self.label_kb_variant.text() != self.start_kb_variant:
+            self.kb_model = self.start_kb_model
+            self.label_kb_model.setText(self.start_kb_model)
+            self.kb_layout = self.start_kb_layout
+            self.label_kb_layout.setText(self.start_kb_layout)
+            self.kb_variant = self.start_kb_variant
+            self.label_kb_variant.setText(self.start_kb_variant)
     
     #
     def on_apply_btn2(self):
@@ -980,14 +977,14 @@ Cycle: {4}""".format(sb_val, sp_val, mo_val, st_val, sc_val)
             return
         #
         commands_to_execute = []
-        #
+        # delay and rate
         if int(self.label_wait_rip.text()) != self.start_rip_val \
         or self.rip_val != self.start_rip_val \
         or int(self.label_int.text()) != self.start_int_val \
         or self.int_val != self.start_int_val:
             str_rip_int_val = "xset r rate {} {}".format(int(self.label_wait_rip.text()), int(self.label_int.text()))
             commands_to_execute.append(str_rip_int_val)
-        #
+        # beep
         if int(self.rip_ckb.isChecked()) != self.start_rip_ckb_value \
         or self.rip_ckb_value != self.start_rip_ckb_value:
             str_new_rip_ckb = "on"
@@ -995,7 +992,8 @@ Cycle: {4}""".format(sb_val, sp_val, mo_val, st_val, sc_val)
                 str_new_rip_ckb = "off"
             str_rip_ckb = "xset b {}".format(str_new_rip_ckb)
             commands_to_execute.append(str_rip_ckb)
-        #
+            self.rip_ckb_value = self.rip_ckb.isChecked()
+        # keyboard model layout variant settings
         if self.label_kb_model.text() != self.start_kb_model \
         or self.start_kb_model != self.kb_model \
         or self.label_kb_layout.text() != self.start_kb_layout \
@@ -1165,10 +1163,10 @@ Variant: {5}""".format(rip_val, int_val, rip_ckb_value, kb_model or "(Not setted
             return
         mouse_name = self.mcombo.currentText()
         try:
-            if self.speed_val != self.start_speed_val \
-            or int(self.label_slider_moveFast.text()) != self.start_speed_val:
+            if self.speed_val != self.start_speed_val:
                 cmd = "xinput set-prop '{}' 'libinput Accel Speed' {}".format(mouse_name, round((self.start_speed_val/100)-1,2))
                 subprocess.Popen(cmd, shell=True)
+            if int(self.label_slider_moveFast.text()) != self.start_speed_val:
                 self.label_slider_moveFast.setText(str(self.start_speed_val))
                 self.slider_speed.setSliderPosition(self.start_speed_val)
                 self.speed_val = self.start_speed_val
@@ -1179,6 +1177,7 @@ Variant: {5}""".format(rip_val, int_val, rip_ckb_value, kb_model or "(Not setted
             if self.lh_ckb_value != self.start_lh_ckb_value:
                 cmd = "xinput set-prop '{}' 'libinput Left Handed Enabled' {}".format(mouse_name, int(self.start_lh_ckb_value))
                 subprocess.Popen(cmd, shell=True)
+            if self.lh_ckb.isChecked() != self.start_lh_ckb_value:
                 self.lh_ckb.setChecked(self.start_lh_ckb_value)
                 self.lh_ckb_value = self.start_lh_ckb_value
         except Exception as E:
@@ -1369,7 +1368,6 @@ class keyboardDialog(QDialog):
         button2.clicked.connect(self.faccept)
         hbox.addWidget(button2)
         #
-        # retval = ""
         self.Value = []
         # 
         self.repository = "/usr/share/X11/xkb/rules/base.xml"
