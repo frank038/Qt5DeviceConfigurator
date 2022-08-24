@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# version 0.8.2
+# version 0.8.3
 import os
 ############## SETTINGS ##############
 
@@ -220,7 +220,7 @@ class MainWin(QWidget):
         self.slider_clickFast.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.slider_clickFast.setMinimum(0)
         self.slider_clickFast.setMaximum(1000)
-        self.slider_clickFast.setSliderPosition(0.0)
+        self.slider_clickFast.setSliderPosition(0)
         self.slider_clickFast.setPageStep(25)
         self.slider_clickFast.setSingleStep(25)
         self.grid1.addWidget(self.slider_clickFast, 6, 1, 1, 8, Qt.AlignCenter)
