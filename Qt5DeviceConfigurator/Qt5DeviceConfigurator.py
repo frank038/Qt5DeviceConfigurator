@@ -70,6 +70,11 @@ SETXKBMAP_EXIST = 0
 if shutil.which("setxkbmap"):
     SETXKBMAP_EXIST = 1
 
+# check for xrandr
+SETXRANDR_EXIST = 0
+if shutil.which("xrandr"):
+    SETXRANDR_EXIST = 1
+
 PROG_MISSED = "Missed:"
 if not XSET_EXIST:
     PROG_MISSED += " xset"
@@ -77,10 +82,12 @@ if not XINPUT_EXIST:
     PROG_MISSED += " xinput"
 if not SETXKBMAP_EXIST:
     PROG_MISSED += " setxkbmap"
+if not SETXRANDR_EXIST:
+    PROG_MISSED += " xrandr"
 
 if PROG_MISSED != "Missed:":
     app = QApplication(sys.argv)
-    fm = firstMessage("Info", "xinput, xset and setxkbmap are required.\n{}".format(PROG_MISSED))
+    fm = firstMessage("Info", "xinput, xset, setxkbmap and xrandr are required.\n{}".format(PROG_MISSED))
     sys.exit(app.exec_())
 
 WINW = 600
