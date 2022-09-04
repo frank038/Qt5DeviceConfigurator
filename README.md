@@ -19,7 +19,7 @@ The 'Test' button is for getting the actual used configuration. The 'Reset' butt
 
 This program cannot change the settings globally, only for user. So, all changes will be lost after logout/login and reboot. The bash scripts and the desktop files are for apply the custom setting at login or when requested.
 
-Can also change the monitor resolution and rate.
+Can also change the monitor resolution and rate. In this case, without further confirmation, the previous settings will be applied.
 
 Screenshots:
 
