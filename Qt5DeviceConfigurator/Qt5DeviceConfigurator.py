@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# version 0.8.3
+# version 0.9
 import os
 ############## SETTINGS ##############
 
@@ -14,7 +14,7 @@ MONITOR_PROG = "arandr"
 
 ############ END SETTINGS ############
 
-from PyQt5.QtCore import (Qt,QMargins)
+from PyQt5.QtCore import (Qt,QMargins,QTimer)
 from PyQt5.QtWidgets import (QSlider,QLayout,QSizePolicy,qApp,QBoxLayout,QLabel,QPushButton,QDesktopWidget,QApplication,QDialog,QGridLayout,QMessageBox,QTabWidget,QWidget,QComboBox,QCheckBox)
 from PyQt5.QtGui import QIcon
 import sys
@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import stat
 import lxml.etree
+import re
 
 
 if not shutil.which(MONITOR_PROG):
@@ -116,6 +117,68 @@ class MyDialog(QMessageBox):
         # # 
         # return result
 
+###########################
+
+def xrandr_data():
+    get_xrandr_output = 1
+    xrandr_output = os.popen("xrandr").read()
+    if not xrandr_output:
+        get_xrandr_output = 0
+
+    # We are not interested in screens
+    xrandr_output = re.sub("(?m)^Screen [0-9].+", "", xrandr_output).strip()
+
+    # Split at output boundaries and instanciate an XrandrOutput per output
+    split_xrandr_output = re.split("(?m)^([^ ]+ (?:(?:dis)?connected|unknown connection).*)$", xrandr_output)
+    if len(split_xrandr_output) < 2:
+        get_xrandr_output = 0
+
+    # the name of the screen connected
+    screen_data = []
+    # resolutions and frequencies
+    list_mode = []
+    # only one monitor allowed
+    is_multimonitor = 0
+
+    if get_xrandr_output:
+        llist = []
+        for i in range(1, len(split_xrandr_output), 2):
+            output_name = split_xrandr_output[i].split()[0]
+            if " connected " in split_xrandr_output[i]:
+                llist.append(["connected", i])
+            elif "disconnected" in split_xrandr_output[i]:
+                llist.append(["disconnected", i])
+            elif "unknown connection" in split_xrandr_output[i]:
+                llist.append(["unknown", i])
+
+        monitor_connected = None
+        len_mon = len(llist)
+        for i,ll in enumerate(llist):
+            if ll[0] == "connected":
+                is_multimonitor += 1
+                if i+1 == len_mon:
+                    monitor_connected = split_xrandr_output[ll[1]:]
+                    break
+
+    # only one monitor
+    if is_multimonitor == 1:
+        monitors = [el.split('\n') for el in monitor_connected]
+        monitor_data = []
+        for ell in monitors:
+            monitor_data.append([el.split() for el in ell if el != ""])
+
+        for el in monitor_data:
+            if "connected" in el[0]:
+                screen_data = el[0][0]
+            else:
+                for ell in el:
+                    list_mode.append([ell[0], ell[1:]])
+    #
+    return screen_data, list_mode, is_multimonitor
+
+screen_data = None
+list_mode = None
+is_multimonitor = None
 
 ########################### MAIN WINDOW ############################
 # 1
@@ -372,19 +435,10 @@ class MainWin(QWidget):
         self.scycle_val = 0
         #
         page3 = QWidget()
-        self.mtab.addTab(page3, "Monitor")
+        self.mtab.addTab(page3, "Screen")
         self.grid3 = QGridLayout()
         page3.setLayout(self.grid3)
         #
-        # program to setting the monitor
-        if MONITOR_PROG:
-            monitor_btn = QPushButton("Monitor Settings...")
-            monitor_btn.setToolTip("{} will be executed.".format(os.path.basename(MONITOR_PROG)))
-            monitor_btn.clicked.connect(self.on_monitor_btn)
-            self.grid3.addWidget(monitor_btn, 0, 0, 1, 4, Qt.AlignLeft)
-        else:
-            monitor_lbl = QLabel("Application {} not found.".format(MONITOR_PROG))
-            self.grid3.addWidget(monitor_lbl, 0, 0, 1, 4, Qt.AlignLeft)
         ## screensaver off/on
         self.screensaver_on_off_btn = QPushButton("Scrsvr On/Off")
         self.screensaver_on_off_btn.setToolTip("Set the screensaver off/on.\nApply is not needed.")
@@ -527,13 +581,217 @@ class MainWin(QWidget):
         self.apply_btn_3.clicked.connect(self.on_apply_btn3)
         self.grid3.addWidget(self.apply_btn_3, 11, 8, 1, 4, Qt.AlignLeft)
         #
-        self.on_start_monitor()
+        self.on_start_screen()
+        #
+        self.page4 = QWidget()
+        self.mtab.addTab(self.page4, "Monitor")
+        self.grid4 = QGridLayout()
+        self.page4.setLayout(self.grid4)
+        # get the data
+        global screen_data
+        global list_mode
+        global is_multimonitor
+        screen_data, list_mode, is_multimonitor = xrandr_data()
+        # ONLY ONE MONITOR IS SUPPORTED
+        if is_multimonitor == 1:
+            # 
+            self.worning_label = QLabel("WARNING!!!\nYOU MUST KNOW WHAT YOU ARE YOU DOING!")
+            self.grid4.addWidget(self.worning_label, 0, 0, 1, 6, Qt.AlignCenter)
+            self.grid4.setRowStretch(0,2)
+            #
+            self.mon_adapter = QLabel("Connected to: "+str(screen_data))
+            self.grid4.addWidget(self.mon_adapter, 1, 0, 1, 6, Qt.AlignLeft)
+            #
+            self.res_lbl = QLabel("Resolutions")
+            self.grid4.addWidget(self.res_lbl, 2, 0, 1, 4, Qt.AlignLeft)
+            self.res_combo = QComboBox()
+            self.grid4.addWidget(self.res_combo, 3, 0, 1, 4, Qt.AlignLeft)
+            #
+            self.res_freq = QLabel("Rates")
+            self.grid4.addWidget(self.res_freq, 2, 4, 1, 2, Qt.AlignLeft)
+            self.freq_combo = QComboBox()
+            self.freq_combo.setEnabled(False)
+            self.grid4.addWidget(self.freq_combo, 3, 4, 1, 2, Qt.AlignLeft)
+            self.freq_chk = QCheckBox()
+            self.grid4.addWidget(self.freq_chk, 3, 5, 1, 2, Qt.AlignCenter)
+            self.freq_chk.setChecked(True)
+            self.freq_chk.stateChanged.connect(self.on_freq_chk)
+            # the starting data
+            resl, freql, freq_def = self.get_actual_res_freq()
+            # starting resolution
+            self.start_res = resl
+            # starting rate
+            self.start_rate = freql
+            ### populate the res_combo with the supported resolutions
+            # # ... and set the current mode
+            for el in list_mode:    
+                self.res_combo.addItem(el[0])
+            #
+            self.res_combo.setCurrentText(resl)
+            self.res_combo.currentIndexChanged.connect(self.res_changed)
+            # # self.res_combo.setCurrentText("640x480") # test
+            #
+            ### populate the freq_combo with the supported rates of the frequency
+            freq_idx = self.res_combo.currentIndex()
+            for ell in list_mode[freq_idx][1]:
+                # for not default current value
+                if ell.strip("+*") == "":
+                    continue
+                self.freq_combo.addItem(ell.strip("+*"))
+            self.freq_combo.setCurrentText(freql)
+            #
+            self.grid4.setRowStretch(4,4)
+            self.apply_btn_mon = QPushButton("Apply")
+            self.apply_btn_mon.clicked.connect(self.on_apply_btn)
+            self.grid4.addWidget(self.apply_btn_mon, 5, 5, 1, 1, Qt.AlignLeft)
+        # or use arandr for multimonitors
+        else:
+            # external program to setting the monitor
+            if MONITOR_PROG:
+                monitor_btn = QPushButton("Monitor Settings...")
+                monitor_btn.setToolTip("{} will be executed.".format(os.path.basename(MONITOR_PROG)))
+                monitor_btn.clicked.connect(self.on_monitor_btn)
+                self.grid4.addWidget(monitor_btn, 0, 0, 1, 4, Qt.AlignLeft)
+            else:
+                monitor_lbl = QLabel("Application {} not found.".format(MONITOR_PROG))
+                self.grid4.addWidget(monitor_lbl, 0, 0, 1, 4, Qt.AlignLeft)
+            #
+            
+    def on_freq_chk(self, ck_state):
+        if ck_state == 0:
+            self.freq_combo.setEnabled(True)
+        elif ck_state == 2:
+            self.freq_combo.setEnabled(False)
         
+    # 
+    def get_actual_res_freq(self):
+        resl = None
+        freql = None
+        freq_def = None
+        for el in list_mode:
+            for ell in el[1]:
+                if "*" in ell:
+                    resl = el[0]
+                    #
+                    for fel in el[1]:
+                        if "*" in fel:
+                            freql = fel.strip().strip("*+")
+                    for fel in el[1]:
+                        if "+" in fel:
+                            freq_def = fel.strip().strip("+*")
+                    break
+            # seeking the default rate
+            for i,ell in enumerate(el[1]):
+                if ell == "+":
+                    freq_def = el[1][i-1]
+                    break
+        # resolution - actual rate - default rate
+        return resl, freql, freq_def
         
+    def res_changed(self, idx):
+        self.freq_combo.clear()
+        for ell in list_mode[idx][1]:
+            # for not default current value
+            if ell.strip("+*") == "":
+                continue
+            self.freq_combo.addItem(ell.strip("+*"))
+        
+    def on_apply_btn(self):
+        global screen_data
+        global list_mode
+        global is_multimonitor
+        # if it is the same configuration, do nothing
+        if not self.freq_chk.isChecked():
+            if self.start_res == self.res_combo.currentText() and self.start_rate == self.freq_combo.currentText():
+                MyDialog("Info", "Same configuration.", self)
+                return
+        else:
+            if self.start_res == self.res_combo.currentText():
+                MyDialog("Info", "Same configuration.", self)
+                return
+        #
+        things_to_change = ""
+        if not self.freq_chk.isChecked():
+            things_to_change = "{0} {1}".format(self.res_combo.currentText(), self.freq_combo.currentText())
+        else:
+            things_to_change = self.res_combo.currentText()
+        #
+        ret = retDialogBox("Question", "Apply the changes? "+things_to_change, self)
+        if ret.getValue() == 0:
+            return
+        #
+        if ret.getValue():
+            # apply the changes
+            if not self.freq_chk.isChecked():
+                new_res = self.res_combo.currentText()
+                new_freq = self.freq_combo.currentText()
+                self.set_xrandr(screen_data, new_res, new_freq)
+            else:
+                new_res = self.res_combo.currentText()
+                self.set_xrandr(screen_data, new_res, None)
+            #
+            # eventually revert after a timeout of ten seconds
+            ret = retDialogBoxT("Question", "Accept the changes?", self)
+            if ret.getValue() == 1:
+                new_res = self.res_combo.currentText()
+                self.start_res = new_res
+                new_freq = self.freq_combo.currentText()
+                self.start_rate = new_freq
+                
+            else:
+                if not self.freq_chk.isChecked():
+                    self.set_xrandr(screen_data, self.start_res, self.start_rate)
+                else:
+                    self.set_xrandr(screen_data, self.start_res, None)
+            ### repopulate the two combobox
+            # get the data
+            screen_data, list_mode, is_multimonitor = xrandr_data()
+            #
+            if is_multimonitor == 1:
+                # the starting data
+                resl, freql, freq_def = self.get_actual_res_freq()
+                # new starting resolution
+                self.start_res = resl
+                # new starting rate
+                self.start_rate = freql
+                ### populate the res_combo with the supported resolutions
+                # # ... and set the current mode
+                # self.res_combo.disconnect()
+                # self.res_combo.clear()
+                # for el in list_mode:
+                    # self.res_combo.addItem(el[0])
+                #
+                self.res_combo.setCurrentText(resl)
+                # self.res_combo.currentIndexChanged.connect(self.res_changed)
+                ###
+                # ### populate the freq_combo with the supported rates of the frequency
+                # self.res_combo.disconnect()
+                # self.res_combo.clear()
+                # freq_idx = self.res_combo.currentIndex()
+                # # for ell in list_mode[freq_idx][1]:
+                    # # # for not default current value
+                    # # if ell.strip("+*") == "":
+                        # # continue
+                    # # self.freq_combo.addItem(ell.strip("+*"))
+                self.freq_combo.setCurrentText(freql)
+                # self.res_combo.currentIndexChanged.connect(self.res_changed)
+            else:
+                # no support for multimonitor
+                self.page4.setEnabled(False)
+            
+    
+    def set_xrandr(self, screen_data, res, freq):
+        COMMAND = None
+        if freq:
+            COMMAND = "xrandr --output {0} --mode {1} --rate {2}".format(screen_data, res, freq)
+        else:
+            COMMAND = "xrandr --output {0} --mode {1}".format(screen_data, res)
+        ret = os.system(COMMAND)
+
 
 ########### MONITOR #############
     
-    def on_start_monitor(self):
+    def on_start_screen(self):
         try:
             cmd = "xset q | grep 'Standby'"
             ret = subprocess.check_output(cmd, shell=True)
@@ -1278,7 +1536,7 @@ Variant: {5}""".format(rip_val, int_val, rip_ckb_value, kb_model or "(Not setted
 
     #
     def on_hlp_btn(self):
-        msg = """Copy in the hidden file .Xesources
+        msg = """Copy in the hidden file .Xesources and/or .Xdefaults
 
 *.multiClickTime: 500
 
@@ -1512,6 +1770,51 @@ class chooseDialog(QDialog):
         
 
 # dialog - return of the choise yes or no
+class retDialogBoxT(QMessageBox):
+    def __init__(self, *args):
+        super(retDialogBoxT, self).__init__(args[-1])
+        self.setWindowIcon(QIcon("icons/progam.png"))
+        self.setWindowTitle(args[0])
+        if args[0] == "Info":
+            self.setIcon(QMessageBox.Information)
+        elif args[0] == "Error":
+            self.setIcon(QMessageBox.Critical)
+        elif args[0] == "Question":
+            self.setIcon(QMessageBox.Question)
+        self.resize(DIALOGWIDTH, 100)
+        self.arg_text = args[1]
+        self.setText(self.arg_text)
+        self.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        #
+        self.Value = 0
+        # counter
+        self.timer_i = 10
+        #
+        self.res_timer = QTimer()
+        self.res_timer.timeout.connect(self.on_res_timer)
+        self.res_timer.start(1000)
+        #
+        #
+        retval = self.exec_()
+        #
+        if retval == QMessageBox.Yes:
+            self.res_timer.stop()
+            self.Value = 1
+        elif retval == QMessageBox.Cancel:
+            self.res_timer.stop()
+            self.Value = 0
+    
+    def getValue(self):
+        return self.Value
+    
+    def on_res_timer(self):
+        self.timer_i -= 1
+        self.setText(self.arg_text+"\nTimeout: "+str(self.timer_i))
+        if self.timer_i == 0:
+            self.reject()
+        
+
+# dialog - return of the choise yes or no
 class retDialogBox(QMessageBox):
     def __init__(self, *args):
         super(retDialogBox, self).__init__(args[-1])
@@ -1528,6 +1831,8 @@ class retDialogBox(QMessageBox):
         self.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
         #
         self.Value = None
+        #
+        #
         retval = self.exec_()
         #
         if retval == QMessageBox.Yes:

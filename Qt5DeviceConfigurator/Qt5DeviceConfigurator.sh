@@ -2,4 +2,4 @@
 
 thisdir=$(dirname "$0")
 cd $thisdir
-./Qt5DeviceConfigurator.py
+python3 Qt5DeviceConfigurator.py
