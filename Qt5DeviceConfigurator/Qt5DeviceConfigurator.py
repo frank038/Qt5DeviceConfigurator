@@ -602,7 +602,7 @@ class MainWin(QWidget):
         # ONLY ONE MONITOR IS SUPPORTED
         if is_multimonitor == 1:
             # 
-            self.worning_label = QLabel("WARNING!!!\nYOU MUST KNOW WHAT YOU ARE YOU DOING!")
+            self.worning_label = QLabel("WARNING!!!\nYOU MUST KNOW WHAT YOU ARE DOING!")
             self.grid4.addWidget(self.worning_label, 0, 0, 1, 6, Qt.AlignCenter)
             self.grid4.setRowStretch(0,2)
             #
