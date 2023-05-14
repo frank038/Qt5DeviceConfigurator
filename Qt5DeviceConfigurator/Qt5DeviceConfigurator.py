@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# version 0.9
+# version 0.9.1
 import os
 ############## SETTINGS ##############
 
@@ -134,7 +134,6 @@ def xrandr_data():
 
     # We are not interested in screens
     xrandr_output = re.sub("(?m)^Screen [0-9].+", "", xrandr_output).strip()
-
     # Split at output boundaries and instanciate an XrandrOutput per output
     split_xrandr_output = re.split("(?m)^([^ ]+ (?:(?:dis)?connected|unknown connection).*)$", xrandr_output)
     if len(split_xrandr_output) < 2:
@@ -157,31 +156,34 @@ def xrandr_data():
                 llist.append(["disconnected", i])
             elif "unknown connection" in split_xrandr_output[i]:
                 llist.append(["unknown", i])
-
         monitor_connected = None
         len_mon = len(llist)
         for i,ll in enumerate(llist):
             if ll[0] == "connected":
                 is_multimonitor += 1
-                if i+1 == len_mon:
-                    monitor_connected = split_xrandr_output[ll[1]:]
-                    break
+                # if i+1 == len_mon:
+                monitor_connected = split_xrandr_output[ll[1]:]
+                # break
 
     # only one monitor
-    if is_multimonitor == 1:
+    if is_multimonitor == 1 and monitor_connected:
         monitors = [el.split('\n') for el in monitor_connected]
         monitor_data = []
         for ell in monitors:
             monitor_data.append([el.split() for el in ell if el != ""])
-
         for el in monitor_data:
-            if "connected" in el[0]:
+            if el and "connected" in el[0]:
                 screen_data = el[0][0]
+                screen_panning = "None"
+                if "panning" in el[0]:
+                    screen_panning = el[0][15].split("+")[0]
+            elif el and "disconnected" in el[0]:
+                continue
             else:
                 for ell in el:
                     list_mode.append([ell[0], ell[1:]])
     #
-    return screen_data, list_mode, is_multimonitor
+    return screen_data, list_mode, is_multimonitor, screen_panning
 
 screen_data = None
 list_mode = None
@@ -598,18 +600,18 @@ class MainWin(QWidget):
         global screen_data
         global list_mode
         global is_multimonitor
-        screen_data, list_mode, is_multimonitor = xrandr_data()
+        screen_data, list_mode, is_multimonitor, screen_panning = xrandr_data()
         # ONLY ONE MONITOR IS SUPPORTED
         if is_multimonitor == 1:
             # 
-            self.worning_label = QLabel("WARNING!!!\nYOU MUST KNOW WHAT YOU ARE DOING!")
+            self.worning_label = QLabel("YOU MUST KNOW WHAT YOU ARE DOING!")
             self.grid4.addWidget(self.worning_label, 0, 0, 1, 6, Qt.AlignCenter)
             self.grid4.setRowStretch(0,2)
             #
             self.mon_adapter = QLabel("Connected to: "+str(screen_data))
             self.grid4.addWidget(self.mon_adapter, 1, 0, 1, 6, Qt.AlignLeft)
             #
-            self.res_lbl = QLabel("Resolutions")
+            self.res_lbl = QLabel("Monitor resolutions")
             self.grid4.addWidget(self.res_lbl, 2, 0, 1, 4, Qt.AlignLeft)
             self.res_combo = QComboBox()
             self.grid4.addWidget(self.res_combo, 3, 0, 1, 4, Qt.AlignLeft)
@@ -618,24 +620,44 @@ class MainWin(QWidget):
             self.grid4.addWidget(self.res_freq, 2, 4, 1, 2, Qt.AlignLeft)
             self.freq_combo = QComboBox()
             self.freq_combo.setEnabled(False)
-            self.grid4.addWidget(self.freq_combo, 3, 4, 1, 2, Qt.AlignLeft)
+            self.grid4.addWidget(self.freq_combo, 3, 3, 1, 2, Qt.AlignLeft)
             self.freq_chk = QCheckBox()
             self.grid4.addWidget(self.freq_chk, 3, 5, 1, 2, Qt.AlignCenter)
             self.freq_chk.setChecked(True)
             self.freq_chk.stateChanged.connect(self.on_freq_chk)
+            #
+            self.pann_res = QLabel("Panning resolutions")
+            self.grid4.addWidget(self.pann_res, 4, 0, 1, 2, Qt.AlignLeft)
+            self.pann_combo = QComboBox()
+            self.pann_combo.setEnabled(False)
+            self.grid4.addWidget(self.pann_combo, 5, 0, 1, 2, Qt.AlignLeft)
+            self.pann_chk = QCheckBox()
+            self.grid4.addWidget(self.pann_chk, 5, 1, 1, 2, Qt.AlignCenter)
+            self.pann_chk.setChecked(True)
+            self.pann_chk.stateChanged.connect(self.on_pann_chk)
+            # help button
+            pann_hlp_btn = QPushButton("Help")
+            pann_hlp_btn.clicked.connect(self.on_pann_hlp_btn)
+            self.grid4.addWidget(pann_hlp_btn, 6, 4, 1, 2, Qt.AlignCenter)
             # the starting data
             resl, freql, freq_def = self.get_actual_res_freq()
             # starting resolution
             self.start_res = resl
             # starting rate
             self.start_rate = freql
+            # panning resolutin
+            self.pann_value = "None"
             ### populate the res_combo with the supported resolutions
             # # ... and set the current mode
             for el in list_mode:    
                 self.res_combo.addItem(el[0])
+            # panning resolution
+            for el in list_mode:    
+                self.pann_combo.addItem(el[0])
+            # self.pann_combo.addItem(resl)
             #
             self.res_combo.setCurrentText(resl)
-            self.res_combo.currentIndexChanged.connect(self.res_changed)
+            # self.res_combo.currentIndexChanged.connect(self.res_changed)
             # # self.res_combo.setCurrentText("640x480") # test
             #
             ### populate the freq_combo with the supported rates of the frequency
@@ -647,10 +669,10 @@ class MainWin(QWidget):
                 self.freq_combo.addItem(ell.strip("+*"))
             self.freq_combo.setCurrentText(freql)
             #
-            self.grid4.setRowStretch(4,4)
+            self.grid4.setRowStretch(7,4)
             self.apply_btn_mon = QPushButton("Apply")
             self.apply_btn_mon.clicked.connect(self.on_apply_btn)
-            self.grid4.addWidget(self.apply_btn_mon, 5, 5, 1, 1, Qt.AlignLeft)
+            self.grid4.addWidget(self.apply_btn_mon, 8, 5, 1, 1, Qt.AlignLeft)
         # or use arandr for multimonitors
         else:
             # external program to setting the monitor
@@ -669,6 +691,13 @@ class MainWin(QWidget):
             self.freq_combo.setEnabled(True)
         elif ck_state == 2:
             self.freq_combo.setEnabled(False)
+    
+    def on_pann_chk(self, ck_state):
+        if ck_state == 0:
+            self.pann_combo.setEnabled(True)
+        elif ck_state == 2:
+            self.pann_combo.setEnabled(False)
+            self.pann_value = "None"
         
     # 
     def get_actual_res_freq(self):
@@ -695,13 +724,13 @@ class MainWin(QWidget):
         # resolution - actual rate - default rate
         return resl, freql, freq_def
         
-    def res_changed(self, idx):
-        self.freq_combo.clear()
-        for ell in list_mode[idx][1]:
-            # for not default current value
-            if ell.strip("+*") == "":
-                continue
-            self.freq_combo.addItem(ell.strip("+*"))
+    # def res_changed(self, idx):
+        # self.freq_combo.clear()
+        # for ell in list_mode[idx][1]:
+            # # for not default current value
+            # if ell.strip("+*") == "":
+                # continue
+            # self.freq_combo.addItem(ell.strip("+*"))
         
     def on_apply_btn(self):
         global screen_data
@@ -716,83 +745,123 @@ class MainWin(QWidget):
             if self.start_res == self.res_combo.currentText():
                 MyDialog("Info", "Same configuration.", self)
                 return
-        #
+        # data to be changed
         things_to_change = ""
-        if not self.freq_chk.isChecked():
-            things_to_change = "{0} {1}".format(self.res_combo.currentText(), self.freq_combo.currentText())
+        #
+        pann_to_change = "None"
+        if not self.pann_chk.isChecked():
+            pann_to_change = self.pann_combo.currentText()
         else:
-            things_to_change = self.res_combo.currentText()
+            pann_to_change = "None"
+        #
+        if not self.freq_chk.isChecked():
+            things_to_change = "Screen: {0}\nRate: {1}\nPanning: {2}".format(self.res_combo.currentText(), self.freq_combo.currentText(), pann_to_change)
+        else:
+            things_to_change = "Screen: {0}\nPanning: {1}".format(self.res_combo.currentText(), pann_to_change)
+        # maybe needs a more accurate parsing method
+        if not self.pann_chk.isChecked():
+            if int(self.res_combo.currentText().split("x")[0]) >= int(self.pann_combo.currentText().split("x")[0]) or int(self.res_combo.currentText().split("x")[1]) >= int(self.pann_combo.currentText().split("x")[1]):
+                MyDialog("Info", "Panning resolution must be higher than monitor resolution.", self)
+                return
         #
         ret = retDialogBox("Question", "Apply the changes? "+things_to_change, self)
         if ret.getValue() == 0:
             return
         #
         if ret.getValue():
+            new_res = self.res_combo.currentText()
+            new_freq = self.freq_combo.currentText()
             # apply the changes
             if not self.freq_chk.isChecked():
-                new_res = self.res_combo.currentText()
-                new_freq = self.freq_combo.currentText()
-                self.set_xrandr(screen_data, new_res, new_freq)
+                self.set_xrandr(screen_data, new_res, new_freq, pann_to_change)
             else:
-                new_res = self.res_combo.currentText()
-                self.set_xrandr(screen_data, new_res, None)
+                self.set_xrandr(screen_data, new_res, None, pann_to_change)
             #
             # eventually revert after a timeout of ten seconds
             ret = retDialogBoxT("Question", "Accept the changes?", self)
             if ret.getValue() == 1:
-                new_res = self.res_combo.currentText()
+                # new_res = self.res_combo.currentText()
                 self.start_res = new_res
-                new_freq = self.freq_combo.currentText()
+                # new_freq = self.freq_combo.currentText()
                 self.start_rate = new_freq
-                
+                self.pann_value = pann_to_change
             else:
                 if not self.freq_chk.isChecked():
-                    self.set_xrandr(screen_data, self.start_res, self.start_rate)
+                    self.set_xrandr(screen_data, self.start_res, self.start_rate, self.pann_value)
+                    self.freq_combo.setCurrentIndex(self.freq_combo.findText(self.start_rate))
                 else:
-                    self.set_xrandr(screen_data, self.start_res, None)
+                    self.set_xrandr(screen_data, self.start_res, None, self.pann_value)
+                #
+                self.res_combo.setCurrentIndex(self.res_combo.findText(self.start_res))
+                #
+            #
+            # panning
+            if self.pann_combo.currentText() == self.res_combo.currentText():
+                self.pann_chk.setChecked(True)
             ### repopulate the two combobox
-            # get the data
-            screen_data, list_mode, is_multimonitor = xrandr_data()
+            # # get the data
+            # screen_data, list_mode, is_multimonitor, screen_panning = xrandr_data()
             #
             if is_multimonitor == 1:
-                # the starting data
-                resl, freql, freq_def = self.get_actual_res_freq()
-                # new starting resolution
-                self.start_res = resl
-                # new starting rate
-                self.start_rate = freql
-                ### populate the res_combo with the supported resolutions
-                # # ... and set the current mode
-                # self.res_combo.disconnect()
-                # self.res_combo.clear()
-                # for el in list_mode:
-                    # self.res_combo.addItem(el[0])
+                pass
+                # # new starting resolution
+                # self.start_res = resl
+                # # new starting rate
+                # self.start_rate = freql
+                # #
+                # self.res_combo.setCurrentText(resl)
+                # self.freq_combo.setCurrentText(freql)
                 #
-                self.res_combo.setCurrentText(resl)
-                # self.res_combo.currentIndexChanged.connect(self.res_changed)
-                ###
-                # ### populate the freq_combo with the supported rates of the frequency
-                # self.res_combo.disconnect()
-                # self.res_combo.clear()
-                # freq_idx = self.res_combo.currentIndex()
-                # # for ell in list_mode[freq_idx][1]:
-                    # # # for not default current value
-                    # # if ell.strip("+*") == "":
-                        # # continue
-                    # # self.freq_combo.addItem(ell.strip("+*"))
-                self.freq_combo.setCurrentText(freql)
-                # self.res_combo.currentIndexChanged.connect(self.res_changed)
+                # #
+                # # the starting data
+                # resl, freql, freq_def = self.get_actual_res_freq()
+                # # new starting resolution
+                # self.start_res = resl
+                # # new starting rate
+                # self.start_rate = freql
+                # ### populate the res_combo with the supported resolutions
+                # # # ... and set the current mode
+                # # self.res_combo.disconnect()
+                # # self.res_combo.clear()
+                # # for el in list_mode:
+                    # # self.res_combo.addItem(el[0])
+                # #
+                # self.res_combo.setCurrentText(resl)
+                # # self.res_combo.currentIndexChanged.connect(self.res_changed)
+                # ###
+                # # ### populate the freq_combo with the supported rates of the frequency
+                # # self.res_combo.disconnect()
+                # # self.res_combo.clear()
+                # # freq_idx = self.res_combo.currentIndex()
+                # # # for ell in list_mode[freq_idx][1]:
+                    # # # # for not default current value
+                    # # # if ell.strip("+*") == "":
+                        # # # continue
+                    # # # self.freq_combo.addItem(ell.strip("+*"))
+                # self.freq_combo.setCurrentText(freql)
+                # # self.res_combo.currentIndexChanged.connect(self.res_changed)
+                # # panning
+                # if self.pann_combo.currentText() == self.res_combo.currentText():
+                    # self.pann_chk.setChecked(True)
             else:
                 # no support for multimonitor
                 self.page4.setEnabled(False)
             
     
-    def set_xrandr(self, screen_data, res, freq):
+    def set_xrandr(self, screen_data, res, freq, pann_data):
         COMMAND = None
         if freq:
-            COMMAND = "xrandr --output {0} --mode {1} --rate {2}".format(screen_data, res, freq)
+            if pann_data == "None":
+                COMMAND = "xrandr --output {0} --mode {1} --rate {2} --panning 0x0".format(screen_data, res, freq)
+            else:
+                COMMAND = "xrandr --output {0} --mode {1} --rate {2} --fb {3} --panning {3}".format(screen_data, res, freq, pann_data)
         else:
-            COMMAND = "xrandr --output {0} --mode {1}".format(screen_data, res)
+            if pann_data == "None":
+                COMMAND = "xrandr --output {0} --mode {1} --panning 0x0".format(screen_data, res)
+            else:
+                COMMAND = "xrandr --output {0} --mode {1} --fb {2} --panning {2}".format(screen_data, res, pann_data)
+                
+        #
         ret = os.system(COMMAND)
 
 
@@ -1554,7 +1623,13 @@ Remove it for the default behaviour.
 
 Or check whether your window manager supports this option."""
         MyDialog("Info", msg, self)
-
+    
+    #
+    def on_pann_hlp_btn(self):
+        msg = """The panning resolution must be higher
+than the screen resolution, for example:\npanning 1920x1080\nresolution 1280x720"""
+        MyDialog("Info", msg, self)
+    
     # 
     def on_test_btn_1(self):
         mouse_name = self.mcombo.currentText()
