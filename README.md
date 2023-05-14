@@ -1,5 +1,5 @@
 # Qt5DeviceConfigurator
-A simple frontend for setting mice, keyboard and monitor.
+A simple frontend for setting mice, keyboard and monitor. This is more or less a semi-serious program.
 
 Version 0.9.1
 
